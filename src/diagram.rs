@@ -2498,16 +2498,34 @@ fn normalize_label_lines(label: &str) -> Vec<String> {
         .collect()
 }
 
-fn measure_label_box(lines: &[String]) -> (f32, f32) {
+fn measure_text_box(lines: &[String]) -> (f32, f32) {
     let mut max_chars = 0_usize;
     for line in lines {
         max_chars = max_chars.max(line.chars().count());
     }
 
-    let width = (EDGE_LABEL_CHAR_WIDTH * max_chars as f32 + EDGE_LABEL_HORIZONTAL_PADDING)
-        .max(EDGE_LABEL_MIN_WIDTH);
-    let height = (EDGE_LABEL_LINE_HEIGHT * lines.len() as f32 + EDGE_LABEL_VERTICAL_PADDING)
-        .max(EDGE_LABEL_MIN_HEIGHT);
+    let width = EDGE_LABEL_CHAR_WIDTH * max_chars as f32;
+    let height = EDGE_LABEL_LINE_HEIGHT * lines.len() as f32;
+
+    (width, height)
+}
+
+fn measure_label_box(lines: &[String]) -> (f32, f32) {
+    let (text_width, text_height) = measure_text_box(lines);
+    let width = (text_width + EDGE_LABEL_HORIZONTAL_PADDING).max(EDGE_LABEL_MIN_WIDTH);
+    let height = (text_height + EDGE_LABEL_VERTICAL_PADDING).max(EDGE_LABEL_MIN_HEIGHT);
+    (width, height)
+}
+
+fn measure_node_label_box(label: &str) -> (f32, f32) {
+    let lines = normalize_label_lines(label);
+    if lines.is_empty() {
+        return (0.0, 0.0);
+    }
+
+    let (text_width, text_height) = measure_text_box(&lines);
+    let width = text_width + NODE_LABEL_PADDING_X * 2.0;
+    let height = text_height + NODE_LABEL_PADDING_Y * 2.0;
 
     (width, height)
 }
@@ -3590,11 +3608,17 @@ fn apply_image_to_node(node: &mut Node, mut image: NodeImage) {
     let label_lines = normalize_label_lines(&node.label);
     let label_line_count = label_lines.len().max(1);
     let label_height = NODE_LABEL_HEIGHT.max(label_line_count as f32 * NODE_TEXT_LINE_HEIGHT);
-    let content_width = (NODE_WIDTH - image.padding * 2.0).max(1.0);
-    let image_height = (content_width * aspect).max(1.0);
-    let total_height = (label_height + image_height + image.padding * 2.0).max(label_height + 1.0);
 
-    node.width = NODE_WIDTH;
+    let (label_bbox_width, _) = measure_node_label_box(&node.label);
+    let content_width = (label_bbox_width - NODE_LABEL_PADDING_X * 2.0)
+        .max(NODE_WIDTH - NODE_LABEL_PADDING_X * 2.0)
+        .max(1.0);
+    let image_height = (content_width * aspect).max(1.0);
+    let total_height =
+        (label_height + image_height + NODE_LABEL_PADDING_Y * 2.0).max(label_height + 1.0);
+
+    let width = label_bbox_width.max(NODE_WIDTH);
+    node.width = width;
     node.height = total_height;
     node.image = Some(image);
 }
@@ -3765,12 +3789,17 @@ fn insert_node_spec(
     match nodes.entry(id.clone()) {
         Entry::Vacant(entry) => {
             order.push(id.clone());
+
+            let (label_width, label_height) = measure_node_label_box(&label);
+            let width = label_width.max(NODE_WIDTH);
+            let height = label_height.max(NODE_HEIGHT);
+
             entry.insert(Node {
                 label,
                 shape,
                 image: None,
-                width: NODE_WIDTH,
-                height: NODE_HEIGHT,
+                width,
+                height,
             });
             inserted = true;
         }

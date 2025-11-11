@@ -15,6 +15,8 @@ pub use utils::*;
 
 pub const NODE_WIDTH: f32 = 140.0;
 pub const NODE_HEIGHT: f32 = 60.0;
+pub const NODE_LABEL_PADDING_X: f32 = 16.0;
+pub const NODE_LABEL_PADDING_Y: f32 = 12.0;
 pub const NODE_SPACING: f32 = 160.0;
 pub const START_OFFSET: f32 = 120.0;
 pub const LAYOUT_MARGIN: f32 = 80.0;
